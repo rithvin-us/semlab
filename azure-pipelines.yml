@@ -1,0 +1,50 @@
+# Azure Pipeline: build with Maven, run JUnit regression tests, publish JAR
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: Maven@4
+  displayName: 'Compile source code'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean compile'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.17'
+    publishJUnitResults: false
+
+- task: Maven@4
+  displayName: 'Run JUnit regression tests'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'test'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.17'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    testRunTitle: 'Regression Tests'
+
+- task: Maven@4
+  displayName: 'Package JAR'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'package'
+    options: '-DskipTests'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.17'
+    publishJUnitResults: false
+
+- task: CopyFiles@2
+  displayName: 'Copy JAR to staging directory'
+  inputs:
+    SourceFolder: '$(System.DefaultWorkingDirectory)/target'
+    Contents: '*.jar'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish JAR artifact'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
